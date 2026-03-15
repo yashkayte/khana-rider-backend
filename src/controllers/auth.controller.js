@@ -1,157 +1,72 @@
 const Rider = require("../models/Rider");
-const jwt = require("jsonwebtoken");
 
-// Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES || "7d",
-  });
-};
-
-// @desc    Register a new rider
-// @route   POST /api/auth/register
-// @access  Public
-exports.register = async (req, res, next) => {
+exports.register = async (req, res) => {
   try {
     const { name, phone, email, password } = req.body;
 
-    // Validation
-    if (!name || !phone || !email || !password) {
+    if (!name || !phone || !password) {
       return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields",
+        message: "Name, phone and password are required"
       });
     }
 
-    // Check if rider already exists
-    let rider = await Rider.findOne({
-      $or: [{ email }, { phone }],
-    });
+    const existing = await Rider.findOne({ where: { phone } });
 
-    if (rider) {
+    if (existing) {
       return res.status(400).json({
-        success: false,
-        message: "Email or phone number already registered",
+        message: "Phone already registered"
       });
     }
 
-    // Create rider
-    rider = await Rider.create({
+    const rider = await Rider.create({
       name,
       phone,
       email,
-      passwordHash: password,
+      password
     });
-
-    // Generate token
-    const token = generateToken(rider._id);
-
-    // Remove password from response
-    rider = rider.toObject();
-    delete rider.passwordHash;
 
     res.status(201).json({
-      success: true,
-      message: "Registration successful",
-      token,
-      rider,
+      message: "Rider registered successfully",
+      rider
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      error: error.message
+    });
   }
 };
 
-// @desc    Login rider
-// @route   POST /api/auth/login
-// @access  Public
-exports.login = async (req, res, next) => {
+exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // Validation
     if (!phone || !password) {
       return res.status(400).json({
-        success: false,
-        message: "Please provide phone and password",
+        message: "Phone and password are required"
       });
     }
 
-    // Check for rider (include password)
-    const rider = await Rider.findOne({ phone }).select("+passwordHash");
+    const rider = await Rider.findOne({ where: { phone } });
 
     if (!rider) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
+      return res.status(404).json({
+        message: "Rider not found"
       });
     }
 
-    // Check password
-    const isMatch = await rider.matchPassword(password);
-
-    if (!isMatch) {
+    if (rider.password !== password) {
       return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
+        message: "Invalid password"
       });
     }
 
-    // Generate token
-    const token = generateToken(rider._id);
-
-    // Remove password from response
-    const riderData = rider.toObject();
-    delete riderData.passwordHash;
-
-    res.json({
-      success: true,
+    res.status(200).json({
       message: "Login successful",
-      token,
-      rider: riderData,
+      rider
     });
   } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Get logged-in rider profile
-// @route   GET /api/auth/me
-// @access  Private
-exports.getProfile = async (req, res, next) => {
-  try {
-    const rider = await Rider.findById(req.rider.id);
-
-    res.json({
-      success: true,
-      rider,
+    res.status(500).json({
+      error: error.message
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Update rider profile
-// @route   PUT /api/auth/update
-// @access  Private
-exports.updateProfile = async (req, res, next) => {
-  try {
-    const { name, email } = req.body;
-
-    const rider = await Rider.findByIdAndUpdate(
-      req.rider.id,
-      { name, email },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-
-    res.json({
-      success: true,
-      message: "Profile updated successfully",
-      rider,
-    });
-  } catch (error) {
-    next(error);
   }
 };

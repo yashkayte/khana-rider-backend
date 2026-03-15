@@ -1,32 +1,35 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../config/database");
 
-const Rider = sequelize.define("Rider", {
+const Kyc = sequelize.define("Kyc", {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  name: {
-    type: DataTypes.STRING,
+  riderId: {
+    type: DataTypes.INTEGER,
     allowNull: false
   },
-  phone: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
-  },
-  email: {
+  aadhaar: {
     type: DataTypes.STRING
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false
+  pan: {
+    type: DataTypes.STRING
   },
-  kycStatus: {
+  drivingLicense: {
+    type: DataTypes.STRING
+  },
+  rc: {
+    type: DataTypes.STRING
+  },
+  insurance: {
+    type: DataTypes.STRING
+  },
+  status: {
     type: DataTypes.STRING,
     defaultValue: "pending"
   }
 });
 
-module.exports = Rider;
+module.exports = Kyc;

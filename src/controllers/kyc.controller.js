@@ -1,138 +1,120 @@
-const Rider = require("../models/Rider");
+const Kyc = require("../models/kyc");
 
-// @desc    Submit KYC details
-// @route   POST /api/kyc/submit
-// @access  Private
-exports.submitKYC = async (req, res, next) => {
+exports.uploadKyc = async (req, res) => {
   try {
-    const { aadharNumber, panNumber, drivingLicenseNumber } = req.body;
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
 
-    // Validation
-    if (!aadharNumber || !panNumber || !drivingLicenseNumber) {
+    const { riderId } = req.body;
+
+    if (!riderId) {
       return res.status(400).json({
-        success: false,
-        message: "Please provide all KYC details",
+        message: "riderId is required"
       });
     }
 
-    // Update KYC details
-    const rider = await Rider.findByIdAndUpdate(
-      req.rider.id,
-      {
-        $set: {
-          "kyc.aadharNumber": aadharNumber,
-          "kyc.panNumber": panNumber,
-          "kyc.drivingLicenseNumber": drivingLicenseNumber,
-          "kyc.status": "PENDING",
-        },
-      },
-      { new: true, runValidators: true }
-    );
-
-    res.json({
-      success: true,
-      message: "KYC submitted successfully. It will be verified shortly",
-      rider,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Get KYC status
-// @route   GET /api/kyc/status
-// @access  Private
-exports.getKYCStatus = async (req, res, next) => {
-  try {
-    const rider = await Rider.findById(req.rider.id);
-
-    res.json({
-      success: true,
-      kyc: rider.kyc,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Get all KYC submissions (Admin only - for demo)
-// @route   GET /api/kyc/all
-// @access  Public
-exports.getAllKYC = async (req, res, next) => {
-  try {
-    const kycs = await Rider.find(
-      { "kyc.status": { $ne: "NOT_SUBMITTED" } },
-      { name: 1, phone: 1, kyc: 1, createdAt: 1 }
-    );
-
-    res.json({
-      success: true,
-      count: kycs.length,
-      kycs,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Approve KYC (Admin only - for demo)
-// @route   PUT /api/kyc/approve/:riderId
-// @access  Public
-exports.approveKYC = async (req, res, next) => {
-  try {
-    const { riderId } = req.params;
-
-    const rider = await Rider.findByIdAndUpdate(
+    const kyc = await Kyc.create({
       riderId,
-      { $set: { "kyc.status": "APPROVED" } },
-      { new: true }
-    );
+      aadhaar: req.files?.aadhaar?.[0]?.filename || null,
+      pan: req.files?.pan?.[0]?.filename || null,
+      drivingLicense: req.files?.drivingLicense?.[0]?.filename || null,
+      rc: req.files?.rc?.[0]?.filename || null,
+      insurance: req.files?.insurance?.[0]?.filename || null,
+      status: "pending"
+    });
 
-    if (!rider) {
+    res.status(201).json({
+      message: "KYC uploaded successfully",
+      kyc
+    });
+  } catch (error) {
+    console.error("KYC upload error:", error);
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+exports.getPendingKyc = async (req, res) => {
+  try {
+    const kycs = await Kyc.findAll({
+      where: { status: "pending" }
+    });
+
+    res.json({
+      message: "Pending KYC list",
+      kycs
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+exports.getAllKyc = async (req, res) => {
+  try {
+    const kycs = await Kyc.findAll();
+
+    res.json({
+      message: "All KYC list",
+      kycs
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+exports.approveKyc = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const kyc = await Kyc.findByPk(id);
+
+    if (!kyc) {
       return res.status(404).json({
-        success: false,
-        message: "Rider not found",
+        message: "KYC not found"
       });
     }
 
+    kyc.status = "approved";
+    await kyc.save();
+
     res.json({
-      success: true,
       message: "KYC approved",
-      rider,
+      kyc
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      error: error.message
+    });
   }
 };
 
-// @desc    Reject KYC (Admin only - for demo)
-// @route   PUT /api/kyc/reject/:riderId
-// @access  Public
-exports.rejectKYC = async (req, res, next) => {
+exports.rejectKyc = async (req, res) => {
   try {
-    const { riderId } = req.params;
-    const { reason } = req.body;
+    const { id } = req.params;
 
-    const rider = await Rider.findByIdAndUpdate(
-      riderId,
-      { $set: { "kyc.status": "REJECTED" } },
-      { new: true }
-    );
+    const kyc = await Kyc.findByPk(id);
 
-    if (!rider) {
+    if (!kyc) {
       return res.status(404).json({
-        success: false,
-        message: "Rider not found",
+        message: "KYC not found"
       });
     }
 
+    kyc.status = "rejected";
+    await kyc.save();
+
     res.json({
-      success: true,
       message: "KYC rejected",
-      reason: reason || "Not specified",
-      rider,
+      kyc
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      error: error.message
+    });
   }
 };

@@ -5,6 +5,7 @@ const upload = require("../middleware/upload");
 const {
   uploadKyc,
   getPendingKyc,
+  getAllKyc,
   approveKyc,
   rejectKyc
 } = require("../controllers/kyc.controller");
@@ -22,7 +23,8 @@ router.post(
 );
 
 router.get("/pending", getPendingKyc);
+router.get("/all", getAllKyc);
 router.put("/approve/:id", approveKyc);
 router.put("/reject/:id", rejectKyc);
 
-module.exports = router
+module.exports = router;
